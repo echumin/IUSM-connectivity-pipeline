@@ -1,5 +1,5 @@
-2019.09.06 Evgeny Jenya Chumin
+2021.01.4 Evgeny Jenya Chumin
 
-Download from: https://github.com/rordenlab/dcm2niix/releases/tag/v1.0.20190902
+Download from: https://github.com/rordenlab/dcm2niix/releases/tag/v1.0.20201102
 
-version 2-September-2019 (v1.0.20190902)
+version 2-November-2020 (v1.0.20201102)
