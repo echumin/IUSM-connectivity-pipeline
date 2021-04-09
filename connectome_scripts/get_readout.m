@@ -31,6 +31,12 @@ if modality==1
 elseif modality==2
     dicomPath=fullfile(paths.DWI.dir,configs.name.dcmFolder);
     filejson=fullfile(paths.DWI.dir,'0_DWI.json');
+elseif modality==11
+    dicomPath=fullfile(paths.DWI.dir,configs.name.dcmFolder1);
+    filejson=fullfile(paths.DWI.dir,'0_DWI.json');
+elseif modality==12
+    dicomPath=fullfile(paths.DWI.dir,configs.name.dcmFolder2); 
+    filejson=fullfile(paths.DWI.dir,'0_DWI.json');
 else
     fprintf(2,'Modality nor specified for get_readout. Exiting..\n')
     return

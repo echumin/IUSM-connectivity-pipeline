@@ -123,13 +123,18 @@ configs.name.epiFolder = 'EPI';
     configs.name.sefmFolder = 'UNWARP'; % Reserved for Field Mapping series
         configs.name.APdcm = 'SEFM_AP_DICOMS'; % Spin Echo A-P
         configs.name.PAdcm = 'SEFM_PA_DICOMS'; % Spin Echo P-A
-configs.name.grefmFolder = 'GREFM_GUST'; % Reserved for Field Mapping series
-    configs.name.GREmagdcm = 'MAG_DICOMS'; % Gradient echo FM magnitude series
-    configs.name.GREphasedcm = 'PHASE_DICOMS'; % Gradient echo FM phase map series
+     configs.name.grefmFolder = 'GREFM_GUST'; % Reserved for Field Mapping series
+%      configs.name.grefmFolder = 'GREFM_MID'; % Reserved for Field Mapping series
+        configs.name.GREmagdcm = 'MAG_DICOMS'; % Gradient echo FM magnitude series
+        configs.name.GREphasedcm = 'PHASE_DICOMS'; % Gradient echo FM phase map series
 configs.name.DWI = 'DWI';
     configs.name.unwarpFolder = 'UNWARP';
         configs.name.dcmPA = 'B0_PA_DCM'; %b0 opposite phase encoding
 
-configs.name.dcmFolder = 'DICOMS';
-
+configs.name.dcmFolder = 'DICOMS'; % Default
+% Allow two DICOM directories (e.g., AP/PA, LR/RL,...). Both phase directions must exist  
+configs.name.dcmFolder1 = 'DICOMS1'; % Specify first phase direction (e.g., AP)
+configs.name.dcmFolder2 = 'DICOMS2'; % Specify reverse phase data direction (e.g., PA)
+% configs.name.dcmFolder1 = ' '; % default is blank
+% configs.name.dcmFolder2 = ' '; % default is blank
 %%

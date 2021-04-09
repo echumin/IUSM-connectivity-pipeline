@@ -223,9 +223,40 @@ if flags.global.DWI_A==1
             fprintf('Processing DWI of %s\n',subjectList(i).name)
             disp('---------------------------')
             if isempty(configs.DWI.readout)
-            % calculate readout time
-            dicomext=find_dcm_ext(fullfile(paths.DWI.dir,configs.name.dcmFolder));
-            [configs.DWI.readout]=get_readout(paths,configs,dicomext,2);
+                % calculate readout time
+                if strcmp(configs.name.dcmFolder1,' ') == 0 && strcmp(configs.name.dcmFolder2,' ') == 0
+                    DWIdir1 = fullfile(paths.DWI.dir,configs.name.dcmFolder1);
+                    DWIdir2 = fullfile(paths.DWI.dir,configs.name.dcmFolder2);
+                    if exist(DWIdir1,'dir')
+                        dicomext=find_dcm_ext(DWIdir1);
+                        DWIreadout1=get_readout(paths,configs,dicomext,11);
+                        if exist(DWIdir2,'dir')
+                            dicomext=find_dcm_ext(DWIdir2);
+                            DWIreadout2=get_readout(paths,configs,dicomext,12);
+                            if DWIreadout1 == DWIreadout2
+                                [configs.DWI.readout]=DWIreadout1;
+                            else
+                                warning('DWI readout values do not match!')
+                                return
+                            end
+                        else
+                            warning('DWI Dicom2 Directory not found. Skipping further analysis')
+                            return
+                        end    
+                    else
+                        warning('DWI Dicom Directory not found. Skipping further analysis')
+                        return
+                    end
+                else
+                    DWIdir = fullfile(paths.DWI.dir,configs.name.dcmFolder);
+                    if exist(DWIdir,'dir')
+                        dicomext=find_dcm_ext(DWIdir);
+                        [configs.DWI.readout]=get_readout(paths,configs,dicomext,2);
+                    else
+                        warning('DWI Dicom Directory not found. Skipping further analysis')
+                        return
+                    end
+                end
             end
             % run DWI preprocessing
             [paths,flags,configs]=f_preproc_DWI(paths,flags,configs);

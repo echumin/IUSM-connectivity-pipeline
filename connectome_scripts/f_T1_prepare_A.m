@@ -127,7 +127,7 @@ if flags.T1.anat==1
                 warning('FIRST subcortical segmentation output not found! Exiting..')
                 return
             end
-            % Unzip and copy the biascorrected image to the main derectory.
+            % Unzip and copy the biascorrected image to the main directory.
             fileOut = fullfile(paths.T1.dir,'T1_fov_denoised.nii.gz');
             sentence = sprintf('cp %s %s',fileIn2,fileOut);
             [status,result] = system(sentence);
@@ -199,7 +199,7 @@ if flags.T1.bet==1
         else
             % ANTS brain extraction
             ANTSlog = fullfile(paths.T1.dir,'ants_bet.log');
-            sentence = sprintf('LD_LIBRARY_PATH= ;%s/antsBrainExtraction.sh -d 3 -a %s -e %s -m %s -o %s > %s',...
+            sentence = sprintf('LD_LIBRARY_PATH= %s/antsBrainExtraction.sh -d 3 -a %s -e %s -m %s -o %s > %s',...
                 paths.ANTS,fileIn,fileTemplate,fileProbability,fileOutroot,ANTSlog);
             [status,result]=system(sentence);
             [status,result]=system(sprintf('mv %s/T1_BrainExtractionMask.nii.gz %s',paths.T1.dir,fileIn2));
