@@ -51,7 +51,7 @@ if flags.DWI.dcm2niix == 1
             sentence = sprintf('rm -f %s',fullfile(paths.DWI.dir,fileNiiStar));
             [~,result] = system(sentence);
             % Create nifti bvec and bval files.
-            sentence = sprintf('%s/connectome_scripts/dcm2niix/dcm2niix -f %s -o %s -v y %s',paths.dcm2niix,fileNii,paths.DWI.dir,paths.DWI.DCM);
+            sentence = sprintf('%s/connectome_scripts/dcm2niix/dcm2niix -f %s -o %s -v y %s',paths.scripts,fileNii,paths.DWI.dir,paths.DWI.DCM);
             [~,result] = system(sentence);
             % save verbose output
             dlmwrite(fullfile(paths.DWI.dir,'dcm2niix.log'),result,'delimiter','')
@@ -179,7 +179,7 @@ if flags.DWI.topup == 1
                     [~,result] = system(sentence);
                 end
                 % dicom import
-                sentence = sprintf('%s/connectome_scripts/dcm2niix/dcm2niix -f %s -o %s -v y %s',paths.dcm2niix,'PA_b0',paths.DWI.UNWARP,paths.DWI.dcmPA);
+                sentence = sprintf('%s/connectome_scripts/dcm2niix/dcm2niix -f %s -o %s -v y %s',paths.scripts,'PA_b0',paths.DWI.UNWARP,paths.DWI.dcmPA);
                 [~,result] = system(sentence);
                 % save log file
                 dlmwrite(fullfile(paths.DWI.UNWARP,'dcm2niix.log'),result,'delimiter','')

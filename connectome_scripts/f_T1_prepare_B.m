@@ -188,12 +188,13 @@ if flags.T1.parc==1
             warning('%s not found. Exiting...',fileIn')
             return
         end
+      if parcs.psubcortonly(k).true == 0 % do not do iterative dilation on subcortical parcs 
         fprintf('%s parcellation intersection with GM\n',parcs.plabel(k).name) 
         fileOut = fullfile(paths.T1.dir,strcat('T1_parc_',parcs.plabel(k).name,'_dil.nii.gz'));
         % Dilate the parcellation.
         sentence = sprintf('%s/fslmaths %s -dilD %s',paths.FSL,fileIn,fileOut);
         [~,result] = system(sentence);
-    
+        
         % Iteratively mask the dilated parcellation with GM.
         fileMul = fullfile(paths.T1.dir,'T1_GM_mask.nii.gz');
         if exist(fileMul,'file') ~= 2
@@ -204,6 +205,7 @@ if flags.T1.parc==1
         fileOut2 = fullfile(paths.T1.dir,strcat('T1_GM_parc_',parcs.plabel(k).name,'.nii.gz'));
         sentence = sprintf('%s/fslmaths %s -mul %s %s',paths.FSL,fileOut,fileMul,fileOut2);
         [~,result] = system(sentence);
+       
         % Dilate and remask to fill GM mask a set number of times
         fileOut3 = fullfile(paths.T1.dir,strcat('T1_GM_parc_',parcs.plabel(k).name,'_dil.nii.gz'));
         for i=1:configs.T1.numDilReMask
@@ -215,6 +217,16 @@ if flags.T1.parc==1
         % 07.25.2017 EJC Remove the left over dil parcellation images.
         sentence = sprintf('rm %s %s %s',fileOut,fileOut3);
         [~,result]=system(sentence);
+      end
+      % Intersect any subcortical parcellation with subcortical mask from
+      % FSL first.
+      if parcs.psubcortonly(k).true == 1
+          fileSub = fullfile(paths.T1.dir,strcat('T1_parc_',parcs.plabel(k).name,'.nii.gz'));
+          fileSubMask = fullfile(paths.T1.dir,'T1_subcort_mask.nii.gz');
+          fileGMSub = fullfile(paths.T1.dir,strcat('T1_GM_parc_',parcs.plabel(k).name,'.nii.gz'));
+          sentence = sprintf('%s/fslmaths %s -dilD -mul %s %s',paths.FSL,fileSub,fileSubMask,fileGMSub);
+          [~,result] = system(sentence);
+      end
         if parcs.pcort(k).true == 1
             counter=counter+1;
             %-------------------------------------------------------------------------%
@@ -294,7 +306,7 @@ if flags.T1.parc==1
                     if parcs.psubcortonly(kk).true == 1 % find subcortical-only parcellation
                         if nsubcort == 0
                             % check that parcellation is available in T1 space
-                            fileSubcortUser = sprintf('T1_parc_%s.nii.gz',parcs.plabel(kk).name);
+                            fileSubcortUser = sprintf('T1_GM_parc_%s.nii.gz',parcs.plabel(kk).name);
                             if exist(fullfile(paths.T1.dir,fileSubcortUser),'file')
                                 fileSubcort = fullfile(paths.T1.dir,fileSubcortUser);
                                 nsubcort = nsubcort + 1; % allow only one subcortical-only parcellation
@@ -311,9 +323,7 @@ if flags.T1.parc==1
             MaxID = max(max(max(volParc.vol)));
             volSubcort=MRIread(fileSubcort);
             if configs.T1.subcortUser == 0 % FSL-provided subcortical
-                volSubcort.vol(volSubcort.vol==16)=0;
-%             else
-%                 volSubcort.vol(volSubcort.vol==16)=0;      
+                volSubcort.vol(volSubcort.vol==16)=0;     
             end
             %----------------------------------------------------------%
             if parcs.pnodal(k).true == 1 
