@@ -1,6 +1,6 @@
 %               INTERMEDIATE FILE COMPRESSION/CLEANUP
 %                       clean_intermediates_test
-%  This code is mean to be used after all the processing and QA has been
+%  This code is meant to be used after all the processing and QC has been
 %  done. It will compress the majority of .nii and .nii.gz into a single
 %  intermediates.tgz tar zipped directory.
 %  Additionally, intermediates can be purged, greatly reducing utillized
@@ -9,7 +9,7 @@
 %  Final output volumes (.nii or .nii.gz) are kept for later visualization.
 %
 %  Requirements:
-%       A system_and_sample_set_up.m script used to process the data, with
+%       A system_and_sample_set_up.m script used to process the data, and
 %       the subjectList containing IDs for which figures are to be
 %       generated.
 %
@@ -116,8 +116,67 @@ if purge == 1
 end
 
     %% EPI clean-up
-    
-    
+    clear source tmp intermediates archive
+    SubjEPI=fullfile(paths.subject,configs.EPI.dir); % path to T1 dir
+    tmp=fullfile(SubjEPI,'tmp');
+    if ~exist(tmp,'dir')
+        mkdir(tmp)
+        % List of files to be kep
+        source{1,1} = fullfile(SubjEPI,'*log');
+        source{2,1} = fullfile(SubjEPI,'*txt');
+        source{3,1} = fullfile(SubjEPI,'*mat');
+        source{4,1} = fullfile(SubjEPI,'*json');
+        source{5,1} = fullfile(SubjEPI,'rT1_brain_mask_FC.nii.gz');
+        source{6,1} = fullfile(SubjEPI,'rT1_GM_parc*clean.nii.gz');
+        source{7,1} = fullfile(SubjEPI,'*png');
+       
+        % move kept files into tmp directory
+        for s=1:length(source)
+            [SUCCESS,MESSAGE,~]=movefile(source{s,1},tmp);
+            if SUCCESS==0
+                disp(MESSAGE)
+            end
+        end
+        
+        intermediates=fullfile(SubjEPI,'intermediates');
+        if ~exist(intermediates,'dir')
+            mkdir(intermediates)
+            % Move all remaining files into the intermediates directory    
+            [SUSSESS,MESSAGE,~]=movefile(fullfile(SubjEPI,'*nii*'),intermediates); %#ok<*ASGLU>
+            if SUCCESS==0
+                disp(MESSAGE)
+            end
+          
+            % Tar zip the intermediates directory
+            archive=fullfile(SubjEPI,'intermediates.tgz');
+            [status,result]=system(sprintf('tar -czf %s %s',archive,intermediates));
+            if ~isempty(result) % check for tar zip errors
+                disp(result)
+                disp('')
+                disp('WILL NOT DELETE INTERMEDAITES')
+                disp('Check that tar ran properly')
+            else % remove the intermediates directory
+                rmdir(fullfile(SubjEPI,'intermediates'),'s')
+            end
+            
+            % move files out of the tmp directory
+            [SUCCESS,MESSAGE,~]=movefile(fullfile(tmp,'*'),SubjEPI);    
+            if SUCCESS==0
+                disp(MESSAGE)
+            end
+            rmdir(tmp)
+        else
+            disp('EPI intermediates dir exists! Check for possible errors,')
+            disp('perhaps from a preceeding clean-up run.')
+        end
+    else
+        disp('EPI tmp dir exists! Check for possible errors,')
+        disp('perhaps from a preceeding clean-up run.')
+    end
+
+if purge == 1
+    delete(archive)
+end
     
     %% DWI clean-up
 
