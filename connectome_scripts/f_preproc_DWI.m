@@ -227,6 +227,21 @@ if flags.DWI.topup == 1
                     sentence=sprintf('%s/fslroi %s %s %d 1',paths.FSL,fileIn,fileOut,B0_index(i));
                     [~,result]=system(sentence);
                 end
+                if flags.DWI.dcm2niix ==0
+                dcm2niix_json = fullfile(paths.DWI.dir, '0_DWI.json');
+                if exist(dcm2niix_json, 'file')
+                    features = get_features_json(dcm2niix_json, false, true);
+                    if strcmp(features.PhaseEncodingDirection,'j-')
+                        configs.DWIdcm(1).phase = [0 -1 0 configs.DWI.readout];
+                    elseif strcmp(features.PhaseEncodingDirection,'j')
+                        configs.DWIdcm(1).phase = [0 1 0 configs.DWI.readout];
+                    else
+                        warn('PhaseEncodingDirection not implemented or unknown')
+                        return
+                    end
+                    configs.DWIdcm(1).SliceTiming = features.SliceTiming;
+                end
+                end
             end
         end
     end
