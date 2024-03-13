@@ -1,4 +1,4 @@
-function [paths,flags,configs]=f_preproc_DWI(paths,flags,configs)
+function [paths,flags,configs]=f_preproc_DWI(paths,flags,configs,sid)
 %                           DWI PREPROCESSING
 %   Includes steps starting from dicom inport and goes all the way through
 %           generation of scalar maps and anatomical registration. 
@@ -13,22 +13,22 @@ function [paths,flags,configs]=f_preproc_DWI(paths,flags,configs)
 %   MDZ addition 11/30/2020 - allow two sets of DWI images (e.g., AP and PA)
 %
 %% DICOM Import
- DWIdcm(1).dir = ' ';
- DWIdcm(2).dir = ' ';
- DWIdcm(1).niifile = '0_DWI';
- DWIdcm(2).niifile = ' ';
- 
- if strcmp(configs.name.dcmFolder1,' ') == 0 && strcmp(configs.name.dcmFolder2,' ') == 0
-     nscanmax = 2; % DWI acquired in two phase directions (e.g., AP and PA)
-     DWIdcm(1).dir = fullfile(paths.DWI.dir,configs.name.dcmFolder1);
-     DWIdcm(2).dir = fullfile(paths.DWI.dir,configs.name.dcmFolder2);
-     DWIdcm(1).niifile = '0_DWI_ph1';
-     DWIdcm(2).niifile = '0_DWI_ph2';
- elseif strcmp(configs.name.dcmFolder,' ') == 0
-     nscanmax = 1; % DWI acquired in one phase direction (b0's non-withstanding)
-     DWIdcm(1).dir = fullfile(paths.DWI.dir,configs.name.dcmFolder);
- end
- 
+%  DWIdcm(1).dir = ' ';
+%  DWIdcm(2).dir = ' ';
+%  DWIdcm(1).niifile = '0_DWI';
+%  DWIdcm(2).niifile = ' ';
+%  
+%  if strcmp(configs.name.dcmFolder1,' ') == 0 && strcmp(configs.name.dcmFolder2,' ') == 0
+%      nscanmax = 2; % DWI acquired in two phase directions (e.g., AP and PA)
+%      DWIdcm(1).dir = fullfile(paths.DWI.dir,configs.name.dcmFolder1);
+%      DWIdcm(2).dir = fullfile(paths.DWI.dir,configs.name.dcmFolder2);
+%      DWIdcm(1).niifile = '0_DWI_ph1';
+%      DWIdcm(2).niifile = '0_DWI_ph2';
+%  elseif strcmp(configs.name.dcmFolder,' ') == 0
+      nscanmax = 1; % DWI acquired in one phase direction (b0's non-withstanding)
+%      DWIdcm(1).dir = fullfile(paths.DWI.dir,configs.name.dcmFolder);
+%  end
+ %% SKIPPING THIS EDIT FOR KBASE WHERE WE DONT HAVE DICOM
 if flags.DWI.dcm2niix == 1
     for nscan=1:nscanmax % 1 or 2 DWI scans
         disp('------------------------')
@@ -143,6 +143,7 @@ if flags.DWI.dcm2niix == 1
     end
 end
 %% FSL Topup
+%% SKIPPING THIS FOR KBASE ; NO OPPOSITE PHASE AVAILABLE
 if flags.DWI.topup == 1
     disp('-------------------------')
     disp('1. Topup Field Estimation')
@@ -267,10 +268,10 @@ if flags.DWI.topup == 1
     [~,result]=system(sentence);
     % generate acqparams.txt necessary for topup
     PAcount=length(B0_list)-length(B0_index); %subtract #of AP b0 from total b0
-    %         APline = [0 -1 0 configs.DWI.readout];
-    %         PAline = [0 1 0 configs.DWI.readout];
-    APline = configs.DWIdcm(1).phase;
-    PAline = configs.DWIdcm(2).phase;
+             APline = [0 -1 0 configs.DWI.readout];
+             PAline = [0 1 0 configs.DWI.readout];
+%     APline = configs.DWIdcm(1).phase;
+%     PAline = configs.DWIdcm(2).phase;
     %(stacking rows of AP and PA lines)
     % create AP portion
     for i=1:length(B0_index)
@@ -300,21 +301,21 @@ end
      
 %% FSL EDDY
 if flags.DWI.eddyPREP == 1
-    for nscan=1:nscanmax
+ %   for nscan=1:nscanmax
     disp('--------------------')
     disp('2.a. EDDY Input Prep')
     disp('--------------------')    
     
     % set paths
-    paths.DWI.UNWARP = fullfile(paths.DWI.dir,configs.name.unwarpFolder);
-    if nscanmax == 1
-        paths.DWI.EDDY=fullfile(paths.DWI.dir,'EDDY');
-    elseif nscanmax == 2
-        paths.DWI.EDDY=fullfile(paths.DWI.dir,strcat('EDDY',num2str(nscan)));
-    else
-        disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
-        return            
-    end
+  %  paths.DWI.UNWARP = fullfile(paths.DWI.dir,configs.name.unwarpFolder);
+ %   if nscanmax == 1
+        paths.DWI.EDDY=fullfile(paths.DWI.deriv,'EDDY');
+%    elseif nscanmax == 2
+ %       paths.DWI.EDDY=fullfile(paths.DWI.dir,strcat('EDDY',num2str(nscan)));
+ %   else
+  %      disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
+  %      return            
+  %  end
     % create output directory if one does not exist
     if ~exist(paths.DWI.EDDY,'dir')
         sentence=sprintf('mkdir %s',paths.DWI.EDDY); [~,result]=system(sentence);
@@ -326,21 +327,21 @@ if flags.DWI.eddyPREP == 1
     
     % Prepare inputs for EDDY
     % Create a B0 mask
-    if exist(paths.DWI.UNWARP,'dir') && exist(fullfile(paths.DWI.UNWARP,'topup_unwarped.nii.gz'),'file')
-            % Inputs if topup was done
-            fileIn = fullfile(paths.DWI.UNWARP,'topup_unwarped.nii.gz');
-            fileMean = fullfile(paths.DWI.EDDY,'meanb0_unwarped.nii.gz');
-    else % if topup distortion not available
-        warning('Topup data not present; Will run EDYY without topup field.')
-        % Extract b0 volumes from dataset
-        if nscanmax == 1
-            Bval=dlmread(fullfile(paths.DWI.dir,'0_DWI.bval'));
-        elseif nscanmax == 2
-            Bval=dlmread(fullfile(paths.DWI.dir,'0_DWI_ph',num2str(nscan),'.bval'));
-        else
-            disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
-            return
-        end
+%     if exist(paths.DWI.UNWARP,'dir') && exist(fullfile(paths.DWI.UNWARP,'topup_unwarped.nii.gz'),'file')
+%             % Inputs if topup was done
+%             fileIn = fullfile(paths.DWI.UNWARP,'topup_unwarped.nii.gz');
+%             fileMean = fullfile(paths.DWI.EDDY,'meanb0_unwarped.nii.gz');
+%     else % if topup distortion not available
+%         warning('Topup data not present; Will run EDYY without topup field.')
+%         % Extract b0 volumes from dataset
+%         if nscanmax == 1
+            Bval=dlmread(fullfile(paths.DWI.raw,[sid '_ses-v0_dwi.bval']));
+%         elseif nscanmax == 2
+%             Bval=dlmread(fullfile(paths.DWI.dir,'0_DWI_ph',num2str(nscan),'.bval'));
+%         else
+%             disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
+%             return
+%         end
         B0_index = find(Bval<=configs.DWI.b0cut); B0_index=B0_index-1; % start at 0
         if isempty(B0_index)
             warning('No b0 volumes identified. Check quality of 0_DWI.bval')
@@ -348,7 +349,7 @@ if flags.DWI.eddyPREP == 1
         else
             disp('Identified B0 indices:')
             disp(B0_index)
-            fileIn = fullfile(paths.DWI.dir,'0_DWI.nii.gz');
+            fileIn = fullfile(paths.DWI.raw,[sid '_ses-v0_dwi.nii']);
             numAP=length(B0_index);
             % Extract B0 images from the 4D series
             for i=1:numAP
@@ -379,7 +380,7 @@ if flags.DWI.eddyPREP == 1
         % Inputs if topup was not done.
         fileIn = fullfile(paths.DWI.EDDY,'all_b0_raw.nii.gz');
         fileMean = fullfile(paths.DWI.EDDY,'meanb0.nii.gz');
-    end
+%     end
         
     % generate mean B0 iamge
     sentence = sprintf('%s/fslmaths %s -Tmean %s',...
@@ -391,14 +392,14 @@ if flags.DWI.eddyPREP == 1
     [~,result]=system(sentence);  
     
    % Find location of b0 volumes in dataset
-    if nscanmax == 1
-        Bval=dlmread(fullfile(paths.DWI.dir,'0_DWI.bval'));
-    elseif nscanmax == 2
-        Bval=dlmread(fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.bval')));
-    else
-        disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
-        return
-    end
+%     if nscanmax == 1
+        Bval=dlmread(fullfile(paths.DWI.raw,[sid '_ses-v0_dwi.bval']));
+%     elseif nscanmax == 2
+%         Bval=dlmread(fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.bval')));
+%     else
+%         disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
+%         return
+%     end
     B0_index = find(Bval<=configs.DWI.b0cut); %#ok<*EFIND>
     if isempty(B0_index)
         warning('No b0 volumes identified. Check quality of 0_DWI.bval')
@@ -409,7 +410,9 @@ if flags.DWI.eddyPREP == 1
     % EDDY only cares about phase encoding and readout of the data
     % being put in; so unless you DWI series contains both AP and PA in
     % one 4D image, only one line is needed.
-    APline = configs.DWIdcm(nscan).phase;
+    APline = [0 -1 0 .03];%!!! 
+    % PAline = [0 1 0 configs.DWI.readout];
+    %APline = configs.DWIdcm(1).phase;
     for i=1:length(B0_index)
         if i == 1
             acqparams = APline;
@@ -422,14 +425,14 @@ if flags.DWI.eddyPREP == 1
     
     % Index file
     % read in DWI data and find number of volumes
-    if nscanmax == 1
-        DWI =MRIread(fullfile(paths.DWI.dir,'0_DWI.nii.gz'));
-    elseif nscanmax == 2
-        DWI =MRIread(fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.nii.gz')));
-    else
-        disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
-        return
-    end
+%     if nscanmax == 1
+        DWI =MRIread(fullfile(paths.DWI.raw,[sid '_ses-v0_dwi.nii']));
+%     elseif nscanmax == 2
+%         DWI =MRIread(fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.nii.gz')));
+%     else
+%         disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
+%         return
+%     end
 
     numVols=size(DWI.vol,4);
     % Generate index file of ones
@@ -445,44 +448,44 @@ if flags.DWI.eddyPREP == 1
     end
     % Write out the index file
     dlmwrite(fullfile(paths.DWI.EDDY,'index.txt'),Index,'delimiter',' ')
-    end
+   % end
 end
 if flags.DWI.eddyRUN == 1
-    for nscan=1:nscanmax
+%    for nscan=1:nscanmax
     disp('-------------')
     disp('2.b. Run EDDY')
     disp('-------------') 
     % set paths
-    paths.DWI.UNWARP = fullfile(paths.DWI.dir,configs.name.unwarpFolder);
-    if nscanmax == 1
-        paths.DWI.EDDY=fullfile(paths.DWI.dir,'EDDY');
-    elseif nscanmax == 2
-        paths.DWI.EDDY=fullfile(paths.DWI.dir,strcat('EDDY',num2str(nscan)));
-    else
-        disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
-        return            
-    end
+%     paths.DWI.UNWARP = fullfile(paths.DWI.dir,configs.name.unwarpFolder);
+%     if nscanmax == 1
+        paths.DWI.EDDY=fullfile(paths.DWI.deriv,'EDDY');
+%     elseif nscanmax == 2
+%         paths.DWI.EDDY=fullfile(paths.DWI.dir,strcat('EDDY',num2str(nscan)));
+%     else
+%         disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
+%         return            
+%     end
     
     % State EDDY inputs
-    if nscanmax == 1
-        fileIn = fullfile(paths.DWI.dir,'0_DWI.nii.gz');
-        fileBvec = fullfile(paths.DWI.dir,'0_DWI.bvec');
-        fileBval = fullfile(paths.DWI.dir,'0_DWI.bval');
-        fileJson = fullfile(paths.DWI.dir,'0_DWI.json');
-    elseif nscanmax == 2
-        fileIn = fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.nii.gz'));
-        fileBvec = fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.bvec'));
-        fileBval = fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.bval'));
-        fileJson = fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.json'));
-    else
-        disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
-        return            
-    end
+%     if nscanmax == 1
+        fileIn = fullfile(paths.DWI.raw,[sid '_ses-v0_dwi.nii']);
+        fileBvec = fullfile(paths.DWI.raw,[sid '_ses-v0_dwi.bvec']);
+        fileBval = fullfile(paths.DWI.raw,[sid '_ses-v0_dwi.bval']);
+        fileJson = fullfile(paths.DWI.raw,[sid '_ses-v0_dwi.json']);
+%     elseif nscanmax == 2
+%         fileIn = fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.nii.gz'));
+%         fileBvec = fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.bvec'));
+%         fileBval = fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.bval'));
+%         fileJson = fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.json'));
+%     else
+%         disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
+%         return            
+%     end
     fileMask = fullfile(paths.DWI.EDDY, 'b0_brain_mask.nii.gz');
     
-    if exist(paths.DWI.UNWARP,'dir') && exist(fullfile(paths.DWI.UNWARP,'topup_results_movpar.txt'),'file')
-        fileTopup = fullfile(paths.DWI.UNWARP,'topup_results'); % input only if topup was done.
-    end
+%     if exist(paths.DWI.UNWARP,'dir') && exist(fullfile(paths.DWI.UNWARP,'topup_results_movpar.txt'),'file')
+%         fileTopup = fullfile(paths.DWI.UNWARP,'topup_results'); % input only if topup was done.
+%     end
     fileIndex = fullfile(paths.DWI.EDDY,'index.txt');
     fileAcqp = fullfile(paths.DWI.EDDY,'acqparams.txt');
     fileOut = fullfile(paths.DWI.EDDY,'eddy_output');
@@ -492,15 +495,15 @@ if flags.DWI.eddyRUN == 1
         % By default, an outlier is a slice whose average intensity is at
         % least 4 standard deviations lower than what is expected by the
         % Gaussian Process Prediction within EDDY.
-        if exist(paths.DWI.UNWARP,'dir') && exist(fullfile(paths.DWI.UNWARP,'topup_results_fieldcoef.nii.gz'),'file')
-            if configs.DWI.MBjson == 1
-                sentence = sprintf('LD_LIBRARY_PATH= %s/eddy_openmp --imain=%s --mask=%s --bvecs=%s --bvals=%s --topup=%s --index=%s --acqp=%s --repol --json=%s --out=%s',...
-                    paths.FSL,fileIn,fileMask,fileBvec,fileBval,fileTopup,fileIndex,fileAcqp,fileJson,fileOut);
-            else
-                sentence = sprintf('LD_LIBRARY_PATH= %s/eddy_openmp --imain=%s --mask=%s --bvecs=%s --bvals=%s --topup=%s --index=%s --acqp=%s --repol --out=%s',...
-                    paths.FSL,fileIn,fileMask,fileBvec,fileBval,fileTopup,fileIndex,fileAcqp,fileOut);
-            end
-        else % no topup field available
+%         if exist(paths.DWI.UNWARP,'dir') && exist(fullfile(paths.DWI.UNWARP,'topup_results_fieldcoef.nii.gz'),'file')
+%             if configs.DWI.MBjson == 1
+%                 sentence = sprintf('LD_LIBRARY_PATH= %s/eddy_openmp --imain=%s --mask=%s --bvecs=%s --bvals=%s --topup=%s --index=%s --acqp=%s --repol --json=%s --out=%s',...
+%                     paths.FSL,fileIn,fileMask,fileBvec,fileBval,fileTopup,fileIndex,fileAcqp,fileJson,fileOut);
+%             else
+%                 sentence = sprintf('LD_LIBRARY_PATH= %s/eddy_openmp --imain=%s --mask=%s --bvecs=%s --bvals=%s --topup=%s --index=%s --acqp=%s --repol --out=%s',...
+%                     paths.FSL,fileIn,fileMask,fileBvec,fileBval,fileTopup,fileIndex,fileAcqp,fileOut);
+%             end
+%         else % no topup field available
             if configs.DWI.MBjson == 1
                 sentence = sprintf('LD_LIBRARY_PATH= %s/eddy_openmp --imain=%s --mask=%s --bvecs=%s --bvals=%s --index=%s --acqp=%s --repol --json=%s --out=%s',...
                     paths.FSL,fileIn,fileMask,fileBvec,fileBval,fileIndex,fileAcqp,fileJson,fileOut);
@@ -508,17 +511,17 @@ if flags.DWI.eddyRUN == 1
                 sentence = sprintf('LD_LIBRARY_PATH= %s/eddy_openmp --imain=%s --mask=%s --bvecs=%s --bvals=%s --index=%s --acqp=%s --repol --out=%s',...
                     paths.FSL,fileIn,fileMask,fileBvec,fileBval,fileIndex,fileAcqp,fileOut);
             end
-        end
+%         end
         [~,result]=system(sentence);
         disp(result)
     else % no repol
-        if exist(paths.DWI.UNWARP,'dir') && exist(fullfile(paths.DWI.UNWARP,'topup_results_fieldcoef.nii.gz'),'file')
-            sentence = sprintf('LD_LIBRARY_PATH= %s/eddy_openmp --imain=%s --mask=%s --bvecs=%s --bvals=%s --topup=%s --index=%s --acqp=%s --out=%s',...
-                paths.FSL,fileIn,fileMask,fileBvec,fileBval,fileTopup,fileIndex,fileAcqp,fileOut);
-        else% no topup field available
+%         if exist(paths.DWI.UNWARP,'dir') && exist(fullfile(paths.DWI.UNWARP,'topup_results_fieldcoef.nii.gz'),'file')
+%             sentence = sprintf('LD_LIBRARY_PATH= %s/eddy_openmp --imain=%s --mask=%s --bvecs=%s --bvals=%s --topup=%s --index=%s --acqp=%s --out=%s',...
+%                 paths.FSL,fileIn,fileMask,fileBvec,fileBval,fileTopup,fileIndex,fileAcqp,fileOut);
+%         else% no topup field available
             sentence = sprintf('LD_LIBRARY_PATH= %s/eddy_openmp --imain=%s --mask=%s --bvecs=%s --bvals=%s --index=%s --acqp=%s --out=%s',...
                 paths.FSL,fileIn,fileMask,fileBvec,fileBval,fileIndex,fileAcqp,fileOut);
-        end
+%         end
         [~,result]=system(sentence);
         disp(result)
     end
@@ -527,34 +530,34 @@ if flags.DWI.eddyRUN == 1
 
     % For QC purpoces this created a difference (Delta image) between raw
     % and EDDY corrected diffusion data.
-    DWI =MRIread(fullfile(paths.DWI.dir,'0_DWI.nii.gz'));
+    DWI =MRIread(fullfile(paths.DWI.raw,[sid '_ses-v0_dwi.nii']));
     corrDWI=MRIread(sprintf('%s.nii.gz',fileOut));
     corrDWI.vol=corrDWI.vol - DWI.vol;
     MRIwrite(corrDWI,fullfile(paths.DWI.EDDY,'delta_DWI.nii.gz'))
-    if nscan == nscanmax
-        clear DWI corrDWI
-    end
-    end
+%     if nscan == nscanmax
+%         clear DWI corrDWI
+%     end
+%     end
 end
 
 %% DTIfit
 if flags.DWI.DTIfit == 1
-    for nscan=1:nscanmax
+%    for nscan=1:nscanmax
         disp('---------------------------')
         disp('3. Fitting Diffusion Tensor')
         disp('---------------------------')
         
         % set paths
-        if nscanmax == 1
-            paths.DWI.EDDY=fullfile(paths.DWI.dir,'EDDY');
-            paths.DWI.DTIfit=fullfile(paths.DWI.dir,'DTIfit');
-        elseif nscanmax == 2
-            paths.DWI.EDDY=fullfile(paths.DWI.dir,strcat('EDDY',num2str(nscan)));
-            paths.DWI.DTIfit=fullfile(paths.DWI.dir,strcat('DTIfit',num2str(nscan)));
-        else
-            disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
-            return
-        end
+%        if nscanmax == 1
+            paths.DWI.EDDY=fullfile(paths.DWI.deriv,'EDDY');
+            paths.DWI.DTIfit=fullfile(paths.DWI.deriv,'DTIfit');
+%         elseif nscanmax == 2
+%             paths.DWI.EDDY=fullfile(paths.DWI.dir,strcat('EDDY',num2str(nscan)));
+%             paths.DWI.DTIfit=fullfile(paths.DWI.dir,strcat('DTIfit',num2str(nscan)));
+%         else
+%             disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
+%             return
+%         end
 
         % create output directory if one does not exist
         if ~exist(paths.DWI.DTIfit,'dir')
@@ -570,14 +573,14 @@ if flags.DWI.DTIfit == 1
         fileDWI=fullfile(paths.DWI.EDDY,'eddy_output.nii.gz');
         
         % Format the Bval file (row format)
-        if nscanmax == 1 
-            Bval=dlmread(fullfile(paths.DWI.dir,'0_DWI.bval'));
-        elseif nscanmax == 2
-            Bval=dlmread(fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.bval')));
-        else
-            disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
-            return
-        end
+%         if nscanmax == 1 
+            Bval=dlmread(fullfile(paths.DWI.raw,[sid '_ses-v0_dwi.bval']));
+%         elseif nscanmax == 2
+%             Bval=dlmread(fullfile(paths.DWI.dir,strcat('0_DWI_ph',num2str(nscan),'.bval')));
+%         else
+%             disp('Only 1 or 2 DWI series are currently implemented. Exiting...')
+%             return
+%         end
         if size(Bval,2)==1
             Bval=Bval';
         end
@@ -606,7 +609,7 @@ if flags.DWI.DTIfit == 1
         
         % save verbose output
         dlmwrite(fullfile(paths.DWI.DTIfit,'dtifit.log'),result,'delimiter','')
-    end
+    %end
 end
 
 % Preproc DWI_A is done.

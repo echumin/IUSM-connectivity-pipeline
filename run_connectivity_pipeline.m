@@ -32,30 +32,36 @@ run(sssu);
 paths.batch=bst;
 % save name in paths structure for reference
 paths.setup=sssu;
+% generate derivatives directory
 
 %%
 if flags.global.T1_prepare_A==1
     % Run T1_A on all subjects in subjectList
 for i=1:length(subjectList)
     run(bst) % initialize default configs
-    paths.subject = fullfile(paths.data,subjectList(i).name);
+    paths.subject.raw = fullfile(paths.dataset,'raw',subjectList(i).name);
+    paths.subject.deriv = fullfile(paths.preproc_out,subjectList(i).name);
+    paths.T1.raw = fullfile(paths.subject.raw,'ses-v0/anat');
     % check that subject path and T1 directory exist
-    if exist(paths.subject,'dir') && exist(fullfile(paths.subject,configs.name.T1),'dir') %#ok<*NODEF>
-        paths.T1.dir = fullfile(paths.subject,configs.name.T1);
-        diary(fullfile(paths.T1.dir,sprintf('diary_%s.log',datestr(now,'yyyymmdd'))))
+    if exist(paths.subject.deriv,'dir') && exist(paths.T1.raw,'dir')
+        paths.T1.deriv = fullfile(paths.subject.deriv,'ses-v0/anat');
+        if ~exist(paths.T1.deriv,'dir')
+            mkdir(paths.T1.deriv)
+        end
+        diary(fullfile(paths.T1.deriv,sprintf('diary_%s.log',datestr(now,'yyyymmdd'))))
         % check that T1 contains something (whether its dicoms dir or a nifti)
-        if ~isempty(paths.T1.dir)
+        if ~isempty(paths.T1.raw)
             disp('------------------------')
             fprintf('T1_prepare_A on %s\n',subjectList(i).name)
             disp('------------------------')
             % run preprocessing
-            [paths,flags,configs]=f_T1_prepare_A(paths,flags,configs);
+            [paths,flags,configs]=f_T1_prepare_A(paths,flags,configs,subjectList(i).name);
             % save the cofiguration variables for this run
-            configFile=fullfile(paths.subject,sprintf('configs_T1_A_%s.mat',datestr(now,'yyyymmdd')));
+            configFile=fullfile(paths.subject.deriv,sprintf('configs_T1_A_%s.mat',datestr(now,'yyyymmdd')));
             if exist(configFile,'file')
-                count=dir(fullfile(paths.subject,sprintf('configs_T1_A_%s*',datestr(now,'yyyymmdd'))));
+                count=dir(fullfile(paths.subject.deriv,sprintf('configs_T1_A_%s*',datestr(now,'yyyymmdd'))));
                 count=length(count);
-                configFile=fullfile(paths.subject,sprintf('configs_T1_A_%s_run%d.mat',datestr(now,'yyyymmdd'),count+1));
+                configFile=fullfile(paths.subject.deriv,sprintf('configs_T1_A_%s_run%d.mat',datestr(now,'yyyymmdd'),count+1));
             end
             save(configFile,'-struct','configs','T1');
         else 
@@ -214,58 +220,64 @@ if flags.global.DWI_A==1
     for i=1:length(subjectList) % For each subject
         run(bst) % initialize default configs
         % Set up environment
-        paths.subject = fullfile(paths.data,subjectList(i).name);
-        paths.T1.dir = fullfile(paths.subject,configs.name.T1);
-        paths.DWI.dir = fullfile(paths.subject,configs.name.DWI);
-        if exist(paths.DWI.dir,'dir')
-            diary(fullfile(paths.DWI.dir,strcat('diary_',datestr(now,'yyyymmdd'),'.log')))
+        paths.subject.raw = fullfile(paths.dataset,'raw',subjectList(i).name);
+        paths.subject.deriv = fullfile(paths.preproc_out,subjectList(i).name);
+        paths.T1.deriv = fullfile(paths.subject.deriv,'ses-v0/anat');
+        paths.DWI.raw = fullfile(paths.subject.raw,'ses-v0/dwi');
+        if exist(paths.DWI.raw,'dir')
+            paths.DWI.deriv = fullfile(paths.subject.deriv,'dwi');
+            if ~exist(paths.DWI.deriv,'dir')
+                mkdir(paths.DWI.deriv)
+            end
+            diary(fullfile(paths.DWI.deriv,strcat('diary_',datestr(now,'yyyymmdd'),'.log')))
             disp('---------------------------')
             fprintf('Processing DWI of %s\n',subjectList(i).name)
             disp('---------------------------')
-            if isempty(configs.DWI.readout)
-                % calculate readout time
-                if strcmp(configs.name.dcmFolder1,' ') == 0 && strcmp(configs.name.dcmFolder2,' ') == 0
-                    DWIdir1 = fullfile(paths.DWI.dir,configs.name.dcmFolder1);
-                    DWIdir2 = fullfile(paths.DWI.dir,configs.name.dcmFolder2);
-                    if exist(DWIdir1,'dir')
-                        dicomext=find_dcm_ext(DWIdir1);
-                        DWIreadout1=get_readout(paths,configs,dicomext,11);
-                        if exist(DWIdir2,'dir')
-                            dicomext=find_dcm_ext(DWIdir2);
-                            DWIreadout2=get_readout(paths,configs,dicomext,12);
-                            if DWIreadout1 == DWIreadout2
-                                [configs.DWI.readout]=DWIreadout1;
-                            else
-                                warning('DWI readout values do not match!')
-                                return
-                            end
-                        else
-                            warning('DWI Dicom2 Directory not found. Skipping further analysis')
-                            return
-                        end    
-                    else
-                        warning('DWI Dicom Directory not found. Skipping further analysis')
-                        return
-                    end
-                else
-                    DWIdir = fullfile(paths.DWI.dir,configs.name.dcmFolder);
-                    if exist(DWIdir,'dir')
-                        dicomext=find_dcm_ext(DWIdir);
-                        [configs.DWI.readout]=get_readout(paths,configs,dicomext,2);
-                    else
-                        warning('DWI Dicom Directory not found. Skipping further analysis')
-                        return
-                    end
-                end
-            end
+%             if isempty(configs.DWI.readout)
+%                 % calculate readout time
+%                 if strcmp(configs.name.dcmFolder1,' ') == 0 && strcmp(configs.name.dcmFolder2,' ') == 0
+%                     DWIdir1 = fullfile(paths.DWI.dir,configs.name.dcmFolder1);
+%                     DWIdir2 = fullfile(paths.DWI.dir,configs.name.dcmFolder2);
+%                     if exist(DWIdir1,'dir')
+%                         dicomext=find_dcm_ext(DWIdir1);
+%                         DWIreadout1=get_readout(paths,configs,dicomext,11);
+%                         if exist(DWIdir2,'dir')
+%                             dicomext=find_dcm_ext(DWIdir2);
+%                             DWIreadout2=get_readout(paths,configs,dicomext,12);
+%                             if DWIreadout1 == DWIreadout2
+%                                 [configs.DWI.readout]=DWIreadout1;
+%                             else
+%                                 warning('DWI readout values do not match!')
+%                                 return
+%                             end
+%                         else
+%                             warning('DWI Dicom2 Directory not found. Skipping further analysis')
+%                             return
+%                         end    
+%                     else
+%                         warning('DWI Dicom Directory not found. Skipping further analysis')
+%                         return
+%                     end
+%                 else
+%                     DWIdir = fullfile(paths.DWI.dir,configs.name.dcmFolder);
+%                     if exist(DWIdir,'dir')
+%                         dicomext=find_dcm_ext(DWIdir);
+%                         [configs.DWI.readout]=get_readout(paths,configs,dicomext,2);
+%                     else
+%                         warning('DWI Dicom Directory not found. Skipping further analysis')
+%                         return
+%                     end
+%                 end
+%             end
             % run DWI preprocessing
-            [paths,flags,configs]=f_preproc_DWI(paths,flags,configs);
+            
+            [paths,flags,configs]=f_preproc_DWI(paths,flags,configs,subjectList(i).name);
             % save the cofiguration variables for this run
-            configFile=fullfile(paths.subject,sprintf('configs_DWI_A_%s.mat',datestr(now,'yyyymmdd')));
+            configFile=fullfile(paths.subject.deriv,sprintf('configs_DWI_A_%s.mat',datestr(now,'yyyymmdd')));
                 if exist(configFile,'file')
-                    count=dir(fullfile(paths.subject,sprintf('configs_DWI_A_%s*',datestr(now,'yyyymmdd'))));
+                    count=dir(fullfile(paths.subject.deriv,sprintf('configs_DWI_A_%s*',datestr(now,'yyyymmdd'))));
                     count=length(count);
-                    configFile=fullfile(paths.subject,sprintf('configs_DWI_A_%s_run%d.mat',datestr(now,'yyyymmdd'),count+1));
+                    configFile=fullfile(paths.subject.deriv,sprintf('configs_DWI_A_%s_run%d.mat',datestr(now,'yyyymmdd'),count+1));
                 end
             save(configFile,'-struct','configs','DWI');
         else

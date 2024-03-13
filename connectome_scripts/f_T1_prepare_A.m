@@ -1,4 +1,4 @@
-function [paths,flags,configs]=f_T1_prepare_A(paths,flags,configs)
+function [paths,flags,configs]=f_T1_prepare_A(paths,flags,configs,sid)
 %                            F_T1_PREPARE_A
 % T1 precprocessing code that results in denoised/field-of-view cropped T1
 % image, generated from provided dicom data. A brain mask as well as a
@@ -14,6 +14,7 @@ function [paths,flags,configs]=f_T1_prepare_A(paths,flags,configs)
 %   Evgeny Chumin, Indiana University School of Medicine
 %
 
+%% SKIPPING FOR FIRST PASS KBASE BIDS EDIT
 %% Dicom to NiFTI
 if flags.T1.dcm2niix==1
     % set dicom directy and identify file extension
@@ -57,23 +58,18 @@ end
 %% T1 denoiser
         % ONLM denoise T1 data in a fixed intensity range.
 if flags.T1.denoiser==1
-    fileIn = fullfile(paths.T1.dir,sprintf('%s.nii.gz',configs.name.T1));
-    if exist(fileIn,'file')
-        disp('Starting T1 denoising')
+
+    fileIn = fullfile(paths.T1.raw,[sid '_ses-v0_T1w.nii']);
+   
         T1_fov = MRIread(fileIn);
         vol_denoised = f_denoise_T1(T1_fov.vol);
         T1_fov.vol = vol_denoised;
-        MRIwrite(T1_fov,fullfile(paths.T1.dir,'T1_denoised.nii'));
-    else
-        warning(' %s.nii.gz not found. Exiting...',configs.name.T1)
-        return
-    end
+        MRIwrite(T1_fov,fullfile(paths.T1.deriv,'T1_denoised.nii'));
+
 elseif flags.T1.denoiser==2
-    fileIn = fullfile(paths.T1.dir,sprintf('%s.nii.gz',configs.name.T1));
-    fileOut = fullfile(paths.T1.dir,'T1_denoised.nii.gz');
+    fileIn = fullfile(paths.T1.raw,[sid '_ses-v0_T1w.nii']);
+    fileOut = fullfile(paths.T1.deriv,'T1_denoised.nii');
     [~,result]=system(sprintf('cp %s %s',fileIn,fileOut));
-    disp(result)
-    [~,result]=system(sprintf('gunzip -f %s',fileOut));
     disp(result)
     disp('Skipped Denoising. Copied T1 to T1_denoised for further processing.')
 else
@@ -82,7 +78,7 @@ end
 
 %% FSL ANAT
 if flags.T1.anat==1
-    paths.T1.anat = fullfile(paths.T1.dir,'T1_denoised.anat');
+    paths.T1.anat = fullfile(paths.T1.deriv,'T1_denoised.anat');
     disp('Running FSL_ANAT')
     % Remove anat directory if one already exists.
     if exist(paths.T1.anat,'dir')
@@ -90,7 +86,7 @@ if flags.T1.anat==1
         [~,result] = system(sentence);
     end
     % Run FSL anat, for bias field correction and subcortical segmentation.
-    fileIn1 = fullfile(paths.T1.dir,'T1_denoised.nii');
+    fileIn1 = fullfile(paths.T1.deriv,'T1_denoised.nii');
     if exist(fileIn1,'file')
         % strongbias should be more appropriate for multi-channel coils on 3T scanners.
         % add nocrop option if registration fails
@@ -128,7 +124,7 @@ if flags.T1.anat==1
                 return
             end
             % Unzip and copy the biascorrected image to the main directory.
-            fileOut = fullfile(paths.T1.dir,'T1_fov_denoised.nii.gz');
+            fileOut = fullfile(paths.T1.deriv,'T1_fov_denoised.nii.gz');
             sentence = sprintf('cp %s %s',fileIn2,fileOut);
             [status,result] = system(sentence);
             if status == 0
@@ -151,7 +147,7 @@ if flags.T1.anat==1
         % Subcortical masks
         disp('Copying subcortical segmentation.')
         fileIn = fullfile(paths.T1.anat,'T1_subcort_seg.nii.gz');
-        fileOut = fullfile(paths.T1.dir,'T1_subcort_seg.nii.gz');
+        fileOut = fullfile(paths.T1.deriv,'T1_subcort_seg.nii.gz');
         if exist(fileIn,'file') ~= 2
             fprintf(2,'Subcortical segmentation not found. Exiting...\n')
             return
@@ -167,9 +163,9 @@ end
 %% T1 bet
 if flags.T1.bet==1
     disp('Brain Extraction and Masking')
-    fileIn = fullfile(paths.T1.dir,'T1_fov_denoised.nii');
+    fileIn = fullfile(paths.T1.deriv,'T1_fov_denoised.nii');
 %----------    fileOut = fullfile(paths.T1.dir,'T1_brain.nii.gz');
-    fileOutroot = fullfile(paths.T1.dir,'T1_');
+    fileOutroot = fullfile(paths.T1.deriv,'T1_');
     switch configs.T1.antsTemplate
         case 'MICCAI'
             fileTemplate = fullfile(paths.scripts,'connectome_scripts/templates/brainmask_templates/MICCAI2012-Multi-Atlas-Challenge-Data/T_template0.nii.gz');
@@ -190,22 +186,22 @@ if flags.T1.bet==1
     end   
             
     if exist(fileIn, 'file')
-        fileIn2 = fullfile(paths.T1.dir,'T1_brain_mask.nii.gz');
-        fileOut = fullfile(paths.T1.dir,'T1_brain.nii.gz');
+        fileIn2 = fullfile(paths.T1.deriv,'T1_brain_mask.nii.gz');
+        fileOut = fullfile(paths.T1.deriv,'T1_brain.nii.gz');
         if strcmp(configs.T1.antsTemplate,'bet') == 1
             sentence = sprintf('%s/bet %s %s -B -m -f %.4f -g %.4f',...
                 paths.FSL,fileIn,fileOut,configs.T1.betF,configs.T1.betG);
             [status,result] = system(sentence);
         else
             % ANTS brain extraction
-            ANTSlog = fullfile(paths.T1.dir,'ants_bet.log');
+            ANTSlog = fullfile(paths.T1.deriv,'ants_bet.log');
             sentence = sprintf('%s/antsBrainExtraction.sh -d 3 -a %s -e %s -m %s -o %s > %s',...
                 paths.ANTS,fileIn,fileTemplate,fileProbability,fileOutroot,ANTSlog);
             [status,result]=system(sentence);
-            [status,result]=system(sprintf('mv %s/T1_BrainExtractionMask.nii.gz %s',paths.T1.dir,fileIn2));
-            [status,result]=system(sprintf('mv %s/T1_BrainExtractionBrain.nii.gz %s',paths.T1.dir,fileOut));
+            [status,result]=system(sprintf('mv %s/T1_BrainExtractionMask.nii.gz %s',paths.T1.deriv,fileIn2));
+            [status,result]=system(sprintf('mv %s/T1_BrainExtractionBrain.nii.gz %s',paths.T1.deriv,fileOut));
         end
-        fileOut2 = fullfile(paths.T1.dir,'T1_brain_mask_filled.nii.gz');
+        fileOut2 = fullfile(paths.T1.deriv,'T1_brain_mask_filled.nii.gz');
         if status == 0 && exist(fileIn2, 'file')
             % Fill holes in the brain mask.
             sentence = sprintf('%s/fslmaths %s -fillh %s',paths.FSL,fileIn2,fileOut2);
@@ -229,9 +225,9 @@ end
 %% T1 Brain Re-Extract
   % Use the filled brain mask to extract the brain.
 if flags.T1.re_extract ==1
-    fileIn = fullfile(paths.T1.dir,'T1_fov_denoised.nii');
-    fileMask = fullfile(paths.T1.dir,'T1_brain_mask_filled.nii.gz');
-    fileOut = fullfile(paths.T1.dir,'T1_brain.nii.gz');
+    fileIn = fullfile(paths.T1.deriv,'T1_fov_denoised.nii');
+    fileMask = fullfile(paths.T1.deriv,'T1_brain_mask_filled.nii.gz');
+    fileOut = fullfile(paths.T1.deriv,'T1_brain.nii.gz');
     if exist(fileIn,'file') && exist(fileMask,'file')
         sentence = sprintf('%s/fslmaths %s -mul %s %s',paths.FSL,fileIn,fileMask,fileOut);
         [status,result] = system(sentence);

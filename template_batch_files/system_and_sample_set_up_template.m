@@ -13,7 +13,7 @@
             %------------------------------------------------%
 
     % Add path to connectome scripts directory
-paths.scripts = '/N/project/HCPaging/code/IUSM-connectivity-pipeline';
+paths.scripts = '/geode2/home/u030/echumin/Carbonate/IUSM-connectivity-pipeline';
 addpath(genpath(paths.scripts));
 
 %%  (This may/should already be set in your .bashrc)
@@ -48,7 +48,18 @@ paths.MRtrix = extractBefore(mrtrix,'/dwi2response');
                     %  SELECT SUBJECT DIRECTORIES  %
                     %------------------------------%
     % Set the path to the directory containing you subjects.
-paths.data = '/N/project/HCPaging/data-processing';
+paths.dataset = '/N/project/kbase-imaging/kbase1-bids';
+
+    % Creating path to derivatives for the dataset
+paths.derivatives = fullfile(paths.dataset,'derivatives');
+if ~exist(paths.derivatives,'dir')
+    mkdir(paths.derivatives)
+end
+    % Creating path to pipeline outputs
+paths.preproc_out = fullfile(paths.derivatives,'iusm-matlab-pipeline');
+if ~exist(paths.preproc_out,'dir')
+    mkdir(paths.preproc_out)
+end
 
 % NOTE: For supercomputing job submissions DO NOT specify a subjectList
 % here. It is generated separately by the PBS job generator. 
@@ -61,7 +72,7 @@ paths.data = '/N/project/HCPaging/data-processing';
                         supercomputing submissions.
                         %}
     % generate a list of subjects from directories in path
-subjectList =dir(paths.data); subjectList(1:2)=[]; %#ok<*NASGU> %remove '.' and '..'
+subjectList =dir(fullfile(paths.dataset,'raw')); subjectList(1:2)=[]; %#ok<*NASGU> %remove '.' and '..'
 
     % If you wish to exclude subjects from the above generated list, use
     % the below line, replacing SUBJECT1 with the subject you want to
@@ -75,7 +86,7 @@ subjectList =dir(paths.data); subjectList(1:2)=[]; %#ok<*NASGU> %remove '.' and 
     % subjects copy and paste the second line as necessary.
     
 %clear subjectList %remove the above generated list
-%subjectList(1).name = 'SU0360'; 
+%subjectList(1).name = 'sub-BR0001'; 
 %subjectList(end+1).name = 'SUBEJCT2'; % copy this line for additional subjects
 
                     end
@@ -87,36 +98,6 @@ subjectList =dir(paths.data); subjectList(1:2)=[]; %#ok<*NASGU> %remove '.' and 
 % The following diagrapm is a sample directory tree for a single subject.
 % Following that are configs you can use to set your own names if different
 % from sample structure.
-
-% SUBJECT1 -- T1 -- DICOMS
-%          |
-%          -- EPI(#) -- DICOMS (May have multiple EPI scans)
-%          |         |
-%          |         |               (SPIN-ECHO)       (GRADIENT ECHO)
-%          |         -- UNWARP -- SEFM_AP_DICOMS (OR) GREFM_MAG_DICOMS
-%          |                   | 
-%          |                   -- SEFM_PA_DICOMS (OR) GREFM_PHASE_DICOMS
-%          | 
-%          -- DWI -- DICOMS
-%                 |
-%                 -- UNWARP -- B0_PA_DCM
-
-% ALTERNTIVE if multiple spin echo fielmap scans are available
-% SUBJECT1 -- T1 -- DICOMS
-%          |
-%          -- EPI(#) -- DICOMS (May have multiple EPI scans)
-%          |         |
-%          |         |      (SPIN-ECHO)     
-%          -- UNWARP1 -- SEFM_AP_DICOMS 
-%          |                   | 
-%          |                   -- SEFM_PA_DICOMS (OR) GREFM_PHASE_DICOMS
-%          -- UNWARP2 -- SEFM_AP_DICOMS 
-%          |                   | 
-%          |                   -- SEFM_PA_DICOMS (OR) GREFM_PHASE_DICOMS
-%          | 
-%          -- DWI -- DICOMS
-%                 |
-%                 -- UNWARP -- B0_PA_DCM
 
 configs.name.T1 = 'T1';
 configs.name.epiFolder = 'EPI';

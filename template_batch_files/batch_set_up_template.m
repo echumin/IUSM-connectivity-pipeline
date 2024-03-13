@@ -76,9 +76,9 @@ parcs.psubcortonly(4).true=1;
                     
     %  T1   %
 flags.global.T1_prepare_A = 1;
-flags.global.T1_prepare_B = 1;
+flags.global.T1_prepare_B = 0;
     %  fMRI  %
-flags.global.fMRI_A = 1;
+flags.global.fMRI_A = 0;
 flags.global.fMRI_B = 0; % currently testing
     %  DWI   %
 flags.global.DWI_A = 0;
@@ -95,14 +95,14 @@ flags.global.DWI_C = 0; % depricated; may not work
                     
 flags.T1.dcm2niix = 0;  % dicom to nifti conversion 
     configs.T1.useCropped = 0; % use cropped field-of-view output of dcm2niix
-flags.T1.denoiser = 2; % denoising % 2 - do not denoise, copy input to output
+flags.T1.denoiser = 1; % denoising % 2 - do not denoise, copy input to output
                                    % 1 - denoise MRI
                                    % 0 - skip if already ran(do not copy input to output)
 flags.T1.anat = 1; % run FSL_anat 
     configs.T1.bias = 2; % 0 = no; 1 = weak; 2 = strong;
     configs.T1.crop = 1; % 0 = no; 1 = yes (lots already done by dcm2niix if used)
 flags.T1.bet = 1; % brain extraction and mask generation
-    configs.T1.antsTemplate = 'NKI'; % 'MICCAI' or 'NKI' or 'IXI' or 'bet'
+    configs.T1.antsTemplate = 'IXI'; % 'MICCAI' or 'NKI' or 'IXI' or 'bet'
     configs.T1.betF = .2;  % These are brain extraction parameters within FSL bet. (0.2)
     configs.T1.betG = -0.02; % See fsl bet help page for more details. (0.15)
 % currently testing ANTS, which does not require bet inputs
@@ -274,13 +274,13 @@ flags.DWI.dcm2niix = 0; % dicom to nifti coversion
     configs.DWIdcm(2).phase = [0 0 0 0]; % define here: array gets read in from dicom headers
 flags.DWI.topup = 0; % FSL topup destortion field estimation
     configs.DWI.b0cut = 1; % maximum B-value to be considered B0
-flags.DWI.eddyPREP = 0; % FSL EDDY distortion correction
-    configs.DWI.EDDYf = 0.3; % fsl bet threshold for b0 brain mask used by EDDY
-flags.DWI.eddyRUN = 0;   
+flags.DWI.eddyPREP = 1; % FSL EDDY distortion correction
+    configs.DWI.EDDYf = 0.2; % fsl bet threshold for b0 brain mask used by EDDY
+flags.DWI.eddyRUN = 1;   
     configs.DWI.repolON = 1; % use eddy_repol to interpolate missing/outlier data
-    configs.DWI.MBjson = 1; % read the slices/MB-groups info from the json file (--json option)
-flags.DWI.DTIfit = 0; % Tensor estimation and generation of scalar maps
-    configs.DWI.DTIfitf = 0.3; % brain extraction (FSL bet -f) parameter    
+    configs.DWI.MBjson = 0; % read the slices/MB-groups info from the json file (--json option)
+flags.DWI.DTIfit = 1; % Tensor estimation and generation of scalar maps
+    configs.DWI.DTIfitf = 0.2; % brain extraction (FSL bet -f) parameter    
     
 %%
                     %---------------------------%
